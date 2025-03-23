@@ -2,8 +2,9 @@ services:
   # Auth service
   auth:
     build:
-      context: .
-      dockerfile: auth/Dockerfile
+      context: auth/
+      dockerfile: Dockerfile
+    restart: always
     ports:
       - "5000:5000"
     environment:
