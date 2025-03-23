@@ -23,3 +23,7 @@ To run the application using Docker, you need to have Docker installed on your m
 ### *Python*
 
 To run the application you need to have Python installed on your machine. Access the documentation [here](https://www.python.org/downloads/) to install.
+
+## Conventional Commits
+
+This project uses the Conventional Commits specification. Access the documentation [here](https://www.conventionalcommits.org/en/v1.0.0/) to understand how to use it.
