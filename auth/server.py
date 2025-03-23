@@ -1,65 +1,74 @@
 """
-This python file is the server that will be used to authenticate users.
-The server will be responsible for authenticating users and generating JWT tokens.
-The server will be connected to a MySQL database to store user information.
+This python file is the server that will be used to authenticate the user.
 """
 
 import jwt, datetime, os
 
 from dotenv import load_dotenv
 from flask import Flask, request
-from flask_mysqldb import MySQL
+from database.database import User, db
+from utils.jwt import create_jwt
+
 
 load_dotenv()
-server = Flask(__name__)
-mysql = MySQL(server)
 
-server.config['MYSQL_HOST'] = os.environ.get('MYSQL_HOST')
-server.config['MYSQL_USER'] = os.environ.get('MYSQL_USER')
-server.config['MYSQL_PASSWORD'] = os.environ.get('MYSQL_PASSWORD')
-server.config['MYSQL_DB'] = os.environ.get('MYSQL_DB')
-server.config['MYSQL_PORT'] = int(os.environ.get('MYSQL_PORT'))
-        
-        
-def create_jwt(email, secret, authz):
-    """
-    Function to create a JWT token for a user.
+app = Flask(__name__)
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URI_CONNECTION")
+db.init_app(app)        
 
-    Args:
-        email (str): The email of the user.
-        secret (str): The secret key to sign the JWT token.
-    """
-    return jwt.encode(
-        {
-            "username": email,
-            "exp": datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(days=1),
-            "iat": datetime.datetime.now(tz=datetime.timezone.utc),
-            "admin": authz,
-        },
-        secret, 
-        algorithm="HS256",
-    )
- 
 
-@server.route("/login", methods=["POST"])
+@app.route("/login", methods=["POST"])
 def login():
+    """
+    Login the user.
+
+    Returns:
+        str, int: The JWT token (Or an error message) and the status code.
+    """
     auth = request.authorization
     if not auth:
         return "missing credentials", 400
     
-    cur = mysql.connection.cursor()
-    res = cur.execute("SELECT email, password FROM user WHERE email = %s", (auth.username,))
-    if res <= 0:
-        return "invalid credentials", 401
+    user = db.session.query(User).filter(User.email == auth.username).first()
+    if not user:
+        return "User not found", 404
     
-    user_row = cur.fetchone()
-    email = user_row[0]
-    password = user_row[1]
-    
-    if auth.username != email or auth.password != password:
+    if auth.username != user.email or auth.password != user.password:
         return "invalid credentials", 401
-    return create_jwt(auth.username, os.environ.get('JWT_SECRET'), True)
+    return create_jwt(user.email, os.environ.get('JWT_SECRET'), True)
+
+
+@app.route("/validate", methods=["POST"])
+def validate():
+    """
+    Validate the user.
+
+    Returns:
+        str, int: The success message (Or an error message) and the status code.
+    """
+    encode_token = request.headers["Authorization"]
+    if not encode_token:
+        return "missing token", 400
+    encode_token = encode_token.split(" ")[1]
+    try:
+        jwt.decode(encode_token, os.environ.get("JWT_SECRET"), algorithms=["HS256"])
+    except jwt.ExpiredSignatureError:
+        return "expired token", 401
+    except jwt.InvalidTokenError:
+        return "invalid token", 401
+    return "valid token", 200
 
 
 if __name__ == "__main__":
-    server.run(host="0.0.0.0", port=5000)
+    """
+    Run the server.
+
+    Raises:
+        e: An exception if the db cannot create all the tables.
+    """
+    try:
+        with app.app_context():
+            db.create_all()
+    except Exception as e:
+        raise e.args
+    app.run(host="0.0.0.0", port=5000)
