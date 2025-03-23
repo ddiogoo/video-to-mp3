@@ -1,4 +1,18 @@
 services:
+  # Auth service
+  auth:
+    build:
+      context: .
+      dockerfile: auth/Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      JWT_SECRET: MHXZihNwukKPwGUi0QDDd0kYMwlqnpF2
+      DATABASE_URI_CONNECTION: mysql+mysqlconnector://root:root@mysql:3306/authdb
+    depends_on:
+      - mysql
+
+  # MySQL service
   mysql:
     image: mysql:5.7
     environment:
