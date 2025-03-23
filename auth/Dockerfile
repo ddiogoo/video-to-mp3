@@ -9,6 +9,9 @@ WORKDIR /app
 COPY auth /app
 RUN pip install --no-cache-dir --requirement /app/requirements.txt
 
+ENV JWT_SECRET=MHXZihNwukKPwGUi0QDDd0kYMwlqnpF2
+ENV DATABASE_URI_CONNECTION=mysql+mysqlconnector://root:root@mysql:3306/authdb
+
 EXPOSE 5000
 
 CMD ["python3", "server.py"]
