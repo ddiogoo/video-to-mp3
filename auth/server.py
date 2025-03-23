@@ -2,7 +2,7 @@
 This python file is the server that will be used to authenticate the user.
 """
 
-import jwt, datetime, os
+import jwt, os
 
 from dotenv import load_dotenv
 from flask import Flask, request
