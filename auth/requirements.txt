@@ -2,8 +2,7 @@ pylint==3.3.6
 jedi==0.19.2
 pyjwt==2.0.1
 flask==3.1.0
-flask_sqlalchemy==3.1.1
 python-dotenv==1.0.1
 sqlalchemy==2.0.39
-mysqlclient==2.2.7
-flask_mysqldb==2.0.0
+Flask-SQLAlchemy==3.1.1
+mysql-connector-python==9.2.0
