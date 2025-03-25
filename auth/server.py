@@ -14,7 +14,29 @@ load_dotenv()
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URI_CONNECTION")
-db.init_app(app)        
+db.init_app(app)
+
+
+@app.route("/register", methods=["POST"])
+def register():
+    """
+    Register the user.
+
+    Returns:
+        str, int: The success message (Or an error message) and the status code.
+    """
+    user = request.get_json()
+    if not user:
+        return "invalid credentials", 400
+    
+    newUser = User(**user)
+    try:
+        db.session.add(newUser)
+        db.session.commit()
+        return "User created", 201
+    except:
+        db.session.rollback()
+        return "User already exists", 400
 
 
 @app.route("/login", methods=["POST"])
