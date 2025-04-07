@@ -2,8 +2,10 @@
 This python file is the main entry point for the Flask application.
 """
 
+import json
 import os, gridfs, pika
 
+from auth import validate
 from auth_svc import access
 from dotenv import load_dotenv
 from flask import Flask, request
@@ -41,3 +43,21 @@ def login():
         return token
     else:
         return err
+
+
+@app.route("/upload", methods=["POST"])
+def upload():
+    access, err = validate.token(request)
+    if err:
+        return err
+    access = json.loads(access)
+    if access["admin"]:
+        if len(request.files) != 1:
+            return "Exactly one file is required", 400
+        for _, f in request.files.items():
+            err = util.upload(f, fs, channel, access)
+            if err:
+                return err
+        return "success!", 200
+    else:
+        return "not authorized", 401
