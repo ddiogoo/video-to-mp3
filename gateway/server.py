@@ -28,15 +28,16 @@ channel = connection.channel()
 @app.route("/login", method=["POST"])
 def login():
     """
-    This function is used to login a user. 
-    It takes the request object as an argument and returns a token if the login is successful. 
-    If the login fails, it returns an error message.
+    Handles the login functionality for the application.
+
+    This route listens for POST requests at the "/login" endpoint. It uses the 
+    `access.login` method to authenticate the user based on the request data. 
+    If authentication is successful, it returns a token. Otherwise, it returns 
+    an error message.
 
     Returns:
-        token: str or None
-            The token returned by the auth service if the login is successful.
-        err: tuple or None
-            An error message if the login fails.
+        str: A token if authentication is successful.
+        str: An error message if authentication fails.
     """
     token, err = access.login(request)
     if not err:
@@ -47,6 +48,39 @@ def login():
 
 @app.route("/upload", methods=["POST"])
 def upload():
+    """
+    Handles file upload requests to the "/upload" endpoint.
+
+    This function validates the user's access token, checks if the user has 
+    admin privileges, and processes the uploaded file. Only one file is 
+    allowed per request.
+
+    Returns:
+        - If the access token is invalid or the user is not authorized:
+        A tuple containing an error message and the appropriate HTTP status code.
+        - If the user is authorized but the request does not contain exactly one file:
+        A tuple with an error message and a 400 status code.
+        - If the file upload is successful:
+        A success message with a 200 status code.
+        - If an error occurs during file upload:
+        The error message returned by the `util.upload` function.
+
+    Request:
+        - Headers:
+            - Authorization: Bearer token for user authentication.
+        - Files:
+            - Exactly one file to be uploaded.
+
+    Dependencies:
+        - `validate.token`: Validates the user's access token.
+        - `util.upload`: Handles the file upload process.
+        - `fs`, `channel`: External resources used during the upload process.
+
+    Notes:
+        - Only users with admin privileges are authorized to upload files.
+        - The function expects the access token to be a JSON object with an 
+        "admin" key indicating the user's privileges.
+    """
     access, err = validate.token(request)
     if err:
         return err
