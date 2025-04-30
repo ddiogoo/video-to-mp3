@@ -1,45 +1,24 @@
-"""
-This python file is the main entry point for the Flask application.
-"""
-
-import json
-import os, gridfs, pika
-
+import os, gridfs, pika, json
+from flask import Flask, request, send_file
+from flask_pymongo import PyMongo
 from auth import validate
 from auth_svc import access
-from dotenv import load_dotenv
-from flask import Flask, request
-from flask_pymongo import PyMongo
 from storage import util
+from bson.objectid import ObjectId
 
+server = Flask(__name__)
 
-load_dotenv()
+mongo_video = PyMongo(server, uri="mongodb://host.minikube.internal:27017/videos")
+mongo_mp3 = PyMongo(server, uri="mongodb://host.minikube.internal:27017/mp3s")
+fs_videos = gridfs.GridFS(mongo_video.db)
+fs_mp3s = gridfs.GridFS(mongo_mp3.db)
 
-app = Flask(__name__)
-app.config["MONGO_URI"] = os.environ.get("MONGO_URI_CONNECTION")
-
-mongo = PyMongo(app)
-fs = gridfs.GridFS(mongo.db)
-
-connParameters = os.environ.get("RABBITMQ_CONNECTION_PARAMETERS")
-connection = pika.BlockingConnection(pika.ConnectionParameters(connParameters))
+connection = pika.BlockingConnection(pika.ConnectionParameters("rabbitmq"))
 channel = connection.channel()
 
 
-@app.route("/login", method=["POST"])
+@server.route("/login", methods=["POST"])
 def login():
-    """
-    Handles the login functionality for the application.
-
-    This route listens for POST requests at the "/login" endpoint. It uses the 
-    `access.login` method to authenticate the user based on the request data. 
-    If authentication is successful, it returns a token. Otherwise, it returns 
-    an error message.
-
-    Returns:
-        str: A token if authentication is successful.
-        str: An error message if authentication fails.
-    """
     token, err = access.login(request)
     if not err:
         return token
@@ -47,50 +26,17 @@ def login():
         return err
 
 
-@app.route("/upload", methods=["POST"])
+@server.route("/upload", methods=["POST"])
 def upload():
-    """
-    Handles file upload requests to the "/upload" endpoint.
-
-    This function validates the user's access token, checks if the user has 
-    admin privileges, and processes the uploaded file. Only one file is 
-    allowed per request.
-
-    Returns:
-        - If the access token is invalid or the user is not authorized:
-        A tuple containing an error message and the appropriate HTTP status code.
-        - If the user is authorized but the request does not contain exactly one file:
-        A tuple with an error message and a 400 status code.
-        - If the file upload is successful:
-        A success message with a 200 status code.
-        - If an error occurs during file upload:
-        The error message returned by the `util.upload` function.
-
-    Request:
-        - Headers:
-            - Authorization: Bearer token for user authentication.
-        - Files:
-            - Exactly one file to be uploaded.
-
-    Dependencies:
-        - `validate.token`: Validates the user's access token.
-        - `util.upload`: Handles the file upload process.
-        - `fs`, `channel`: External resources used during the upload process.
-
-    Notes:
-        - Only users with admin privileges are authorized to upload files.
-        - The function expects the access token to be a JSON object with an 
-        "admin" key indicating the user's privileges.
-    """
     access, err = validate.token(request)
     if err:
         return err
     access = json.loads(access)
     if access["admin"]:
-        if len(request.files) != 1:
-            return "Exactly one file is required", 400
+        if len(request.files) > 1 or len(request.files) < 1:
+            return "exactly 1 file required", 400
         for _, f in request.files.items():
-            err = util.upload(f, fs, channel, access)
+            err = util.upload(f, fs_videos, channel, access)
             if err:
                 return err
         return "success!", 200
@@ -98,10 +44,24 @@ def upload():
         return "not authorized", 401
 
 
-@app.route("/download", methods=["GET"])
+@server.route("/download", methods=["GET"])
 def download():
-    pass
+    access, err = validate.token(request)
+    if err:
+        return err
+    access = json.loads(access)
+    if access["admin"]:
+        fid_string = request.args.get("fid")
+        if not fid_string:
+            return "fid is required", 400
+        try:
+            out = fs_mp3s.get(ObjectId(fid_string))
+            return send_file(out, download_name=f"{fid_string}.mp3")
+        except Exception as err:
+            print(err)
+            return "internal server error", 500
+    return "not authorized", 401
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+    server.run(host="0.0.0.0", port=8080)
