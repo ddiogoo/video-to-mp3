@@ -1,2 +1,0 @@
-CREATE DATABASE IF NOT EXISTS authdb;
-USE authdb;
