@@ -4,7 +4,3 @@ metadata:
   name: gateway-configmap
 data:
   AUTH_SVC_ADDRESS: "auth:5000"
-  RABBITMQ_UPLOAD_EXCHANGE: ""
-  RABBITMQ_UPLOAD_ROUTING_KEY: "video"
-  RABBITMQ_CONNECTION_PARAMETERS: "rabbitmq"
-  MONGO_URI_CONNECTION: "mongodb://host.minikube.internal:27017/videos"
